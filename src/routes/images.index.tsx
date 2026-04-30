@@ -75,7 +75,7 @@ const SearchSchema = z.object({
 
 const PAGE_SIZE = 50;
 /** Min interval between automatic background syncs (ms). */
-const AUTO_SYNC_INTERVAL_MS = 60_000;
+const AUTO_SYNC_INTERVAL_MS = 30 * 60_000;
 const AUTO_SYNC_STORAGE_KEY = "images:lastAutoSyncAt";
 const VIEW_STORAGE_KEY = "images:view";
 const DEFAULT_VIEW: "grid" | "table" = "table";
@@ -91,14 +91,25 @@ export const Route = createFileRoute("/images/")({
 	validateSearch: SearchSchema,
 });
 
-/** Background sync on mount, throttled across navigations via sessionStorage. */
+/**
+ * Background sync on mount, throttled across navigations and tabs via
+ * localStorage. Marks image lists stale without forcing an immediate refetch
+ * — the next render or interaction will pull the fresh data.
+ */
 function useAutoSync() {
 	const queryClient = useQueryClient();
 	const autoSync = useMutation({
 		mutationFn: () => syncImages(),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeys.images.all });
-			queryClient.invalidateQueries({ queryKey: queryKeys.stats });
+			// Mark stale only — don't refetch every cached list right now.
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.images.all,
+				refetchType: "none",
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.stats,
+				refetchType: "none",
+			});
 		},
 	});
 	const started = useRef(false);
@@ -106,9 +117,9 @@ function useAutoSync() {
 		if (started.current) return;
 		started.current = true;
 		if (typeof window === "undefined") return;
-		const last = Number(sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY) ?? 0);
+		const last = Number(localStorage.getItem(AUTO_SYNC_STORAGE_KEY) ?? 0);
 		if (Date.now() - last < AUTO_SYNC_INTERVAL_MS) return;
-		sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, String(Date.now()));
+		localStorage.setItem(AUTO_SYNC_STORAGE_KEY, String(Date.now()));
 		autoSync.mutate();
 	}, [autoSync.mutate]);
 	return autoSync;
@@ -372,7 +383,9 @@ function ImagesIndex() {
 	const sync = useMutation({
 		mutationFn: () => syncImages(),
 		onSuccess: (data) => {
-			toast.success(`Synced ${formatNumber(data.synced)} images`);
+			toast.success(
+				`Synced ${formatNumber(data.synced)} images (${formatNumber(data.written)} updated)`,
+			);
 			queryClient.invalidateQueries({ queryKey: queryKeys.images.all });
 			queryClient.invalidateQueries({ queryKey: queryKeys.stats });
 		},

@@ -479,9 +479,35 @@ export const bulkUpdateImages = createServerFn({ method: "POST" })
 export const syncImages = createServerFn({ method: "POST" }).handler(
 	async () => {
 		const ctx = getServerCtx();
-		const { cf, accountId } = ctx;
+		const { cf, accountId, db } = ctx;
 
-		let total = 0;
+		// Load all client creator-mappings once instead of per-image.
+		const clientRows = await db
+			.select({ id: clients.id, creator: clients.creator })
+			.from(clients);
+		const clientByCreator = new Map<string, string>();
+		for (const c of clientRows) {
+			if (c.creator) clientByCreator.set(c.creator, c.id);
+		}
+
+		// Snapshot the cache so we can skip writes for rows that haven't changed.
+		// We only compare fields that come from CF (folder/path are local-only).
+		const cachedRows = await db
+			.select({
+				id: imagesCache.id,
+				filename: imagesCache.filename,
+				meta: imagesCache.meta,
+				requireSignedUrls: imagesCache.requireSignedUrls,
+				uploadedAt: imagesCache.uploadedAt,
+				creator: imagesCache.creator,
+				variants: imagesCache.variants,
+				clientId: imagesCache.clientId,
+			})
+			.from(imagesCache);
+		const cachedById = new Map(cachedRows.map((r) => [r.id, r]));
+
+		let scanned = 0;
+		let written = 0;
 		let continuationToken: string | undefined;
 
 		// Manually paginate V2 list via continuation_token. The SDK returns the
@@ -493,12 +519,49 @@ export const syncImages = createServerFn({ method: "POST" }).handler(
 				...(continuationToken ? { continuation_token: continuationToken } : {}),
 			});
 			for (const img of page.images ?? []) {
-				await upsertImage(ctx, img as CFImage);
-				total++;
+				const cf = img as CFImage;
+				if (!cf.id) continue;
+				scanned++;
+
+				const row = cfImageToRow(cf as CFImage & { id: string });
+				const mappedClientId = clientByCreator.get(row.creator ?? "") ?? null;
+				const cached = cachedById.get(cf.id);
+
+				// Skip the write entirely when nothing CF-side has changed and the
+				// creator-mapped client is already correct.
+				if (
+					cached &&
+					cached.filename === row.filename &&
+					cached.meta === row.meta &&
+					cached.requireSignedUrls === row.requireSignedUrls &&
+					cached.uploadedAt?.getTime() === row.uploadedAt?.getTime() &&
+					cached.creator === row.creator &&
+					cached.variants === row.variants &&
+					(mappedClientId === null || cached.clientId === mappedClientId)
+				) {
+					continue;
+				}
+
+				const conflictSet: Partial<typeof imagesCache.$inferInsert> = {
+					filename: row.filename,
+					meta: row.meta,
+					requireSignedUrls: row.requireSignedUrls,
+					uploadedAt: row.uploadedAt,
+					creator: row.creator,
+					variants: row.variants,
+					lastSyncedAt: row.lastSyncedAt,
+				};
+				if (mappedClientId) conflictSet.clientId = mappedClientId;
+
+				await db
+					.insert(imagesCache)
+					.values({ ...row, clientId: mappedClientId })
+					.onConflictDoUpdate({ target: imagesCache.id, set: conflictSet });
+				written++;
 			}
 			continuationToken = page.continuation_token ?? undefined;
 		} while (continuationToken);
 
-		return { synced: total };
+		return { synced: scanned, written };
 	},
 );
