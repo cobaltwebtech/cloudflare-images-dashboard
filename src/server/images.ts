@@ -548,13 +548,20 @@ export const syncImages = createServerFn({ method: "POST" }).handler(
 				const cached = cachedById.get(cf.id);
 
 				// Skip the write entirely when nothing CF-side has changed and the
-				// creator-mapped client is already correct.
+				// creator-mapped client is already correct. Note: the DB stores
+				// timestamps at second precision, so compare uploadedAt as seconds.
+				const cachedUploadedSec = cached?.uploadedAt
+					? Math.floor(cached.uploadedAt.getTime() / 1000)
+					: null;
+				const freshUploadedSec = row.uploadedAt
+					? Math.floor(row.uploadedAt.getTime() / 1000)
+					: null;
 				if (
 					cached &&
 					cached.filename === row.filename &&
 					cached.meta === row.meta &&
 					cached.requireSignedUrls === row.requireSignedUrls &&
-					cached.uploadedAt?.getTime() === row.uploadedAt?.getTime() &&
+					cachedUploadedSec === freshUploadedSec &&
 					cached.creator === row.creator &&
 					cached.variants === row.variants &&
 					(mappedClientId === null || cached.clientId === mappedClientId)
