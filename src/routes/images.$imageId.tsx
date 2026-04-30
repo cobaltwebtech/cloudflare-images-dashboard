@@ -57,12 +57,19 @@ function ImageDetail() {
 
 	const updateMut = useMutation({
 		mutationFn: updateImage,
-		onSuccess: () => {
+		onSuccess: (updated) => {
 			toast.success("Image updated");
+			// Write the fresh row directly into the detail cache so the UI
+			// reflects the change without an extra round-trip.
+			if (updated) {
+				queryClient.setQueryData(queryKeys.images.detail(imageId), updated);
+			}
+			// Mark every cached images list stale, but don't refetch them now.
+			// They'll refresh next time they're observed (e.g. on navigation).
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.images.detail(imageId),
+				queryKey: queryKeys.images.all,
+				refetchType: "none",
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.images.all });
 		},
 		onError: (err: Error) => toast.error(err.message),
 	});

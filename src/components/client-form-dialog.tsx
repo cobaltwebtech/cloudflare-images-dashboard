@@ -20,9 +20,9 @@ type Mode =
 	| { kind: "create"; trigger: React.ReactNode }
 	| { kind: "edit"; trigger: React.ReactNode; client: Client };
 
-type ClientFormState = {
+export type ClientFormState = {
 	name: string;
-	website: string;
+	domain: string;
 	description: string;
 	color: string;
 	creator: string;
@@ -32,27 +32,27 @@ const DEFAULT_COLOR = "#94a3b8";
 
 // Cyclomatic count comes from per-field nullish coalesces; cognitive is 4.
 // fallow-ignore-next-line complexity
-function initialFormState(client: Client | null): ClientFormState {
+export function initialFormState(client: Client | null): ClientFormState {
 	return {
 		name: client?.name ?? "",
-		website: client?.website ?? "",
+		domain: client?.domain ?? "",
 		description: client?.description ?? "",
 		color: client?.color ?? DEFAULT_COLOR,
 		creator: client?.creator ?? "",
 	};
 }
 
-function buildClientPayload(s: ClientFormState) {
+export function buildClientPayload(s: ClientFormState) {
 	return {
 		name: s.name.trim(),
-		website: s.website.trim() || null,
+		domain: s.domain.trim() || null,
 		description: s.description.trim() || null,
 		color: s.color || null,
 		creator: s.creator.trim() || null,
 	};
 }
 
-function ClientFormFields({
+export function ClientFormFields({
 	state,
 	onChange,
 }: {
@@ -76,15 +76,15 @@ function ClientFormFields({
 				/>
 			</div>
 			<div>
-				<Label htmlFor="client-website" className="mb-1">
-					Website
+				<Label htmlFor="client-domain" className="mb-1">
+					Domain
 				</Label>
 				<Input
-					id="client-website"
+					id="client-domain"
 					type="url"
-					value={state.website}
-					onChange={(e) => onChange("website", e.target.value)}
-					placeholder="https://example.com"
+					value={state.domain}
+					onChange={(e) => onChange("domain", e.target.value)}
+					placeholder="example.com"
 				/>
 			</div>
 			<div>

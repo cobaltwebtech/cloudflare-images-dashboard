@@ -35,7 +35,7 @@ export function ConfirmDeleteButton({
 	return (
 		<AlertDialog>
 			<AlertDialogTrigger asChild>
-				<Button variant="ghost" size="icon" title={triggerTitle}>
+				<Button variant="outline" size="icon" title={triggerTitle}>
 					<TrashIcon />
 				</Button>
 			</AlertDialogTrigger>

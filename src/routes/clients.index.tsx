@@ -7,9 +7,23 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { clientsQueryOptions } from "@/lib/queries";
+import { formatNumber } from "@/lib/format";
+import { clientsQueryOptions, imagesListQueryOptions } from "@/lib/queries";
 
 export const Route = createFileRoute("/clients/")({ component: ClientsPage });
+
+function ClientImageCount({ clientId }: { clientId: string }) {
+	const images = useQuery(
+		imagesListQueryOptions({ clientId, limit: 1, offset: 0 }),
+	);
+	if (images.isLoading) return null;
+	const n = images.data?.total ?? 0;
+	return (
+		<p className="mt-1 text-xs text-muted-foreground">
+			{formatNumber(n)} {n === 1 ? "image" : "images"}
+		</p>
+	);
+}
 
 function ClientsPage() {
 	const clients = useQuery(clientsQueryOptions());
@@ -25,7 +39,7 @@ function ClientsPage() {
 							kind: "create",
 							trigger: (
 								<Button>
-									<PlusIcon /> New client
+									<PlusIcon /> Add Client
 								</Button>
 							),
 						}}
@@ -47,7 +61,7 @@ function ClientsPage() {
 								kind: "create",
 								trigger: (
 									<Button>
-										<PlusIcon /> New client
+										<PlusIcon /> Add Client
 									</Button>
 								),
 							}}
@@ -72,9 +86,9 @@ function ClientsPage() {
 									/>
 									<div className="min-w-0 flex-1">
 										<p className="truncate font-medium">{c.name}</p>
-										{c.website ? (
+										{c.domain ? (
 											<p className="truncate text-xs text-muted-foreground">
-												{c.website}
+												{c.domain}
 											</p>
 										) : null}
 										{c.description ? (
@@ -82,6 +96,7 @@ function ClientsPage() {
 												{c.description}
 											</p>
 										) : null}
+										<ClientImageCount clientId={c.id} />
 									</div>
 								</CardContent>
 							</Card>

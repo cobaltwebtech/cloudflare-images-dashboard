@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotFound } from "@/components/not-found";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
 	SidebarInset,
@@ -35,7 +36,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
 			{ title: "Cloudflare Images Dashboard" },
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
+		links: [
+			{ rel: "stylesheet", href: appCss },
+			{ rel: "icon", href: "/favicon.svg" },
+		],
 	}),
 	// Preload the public CF config on every navigation — it's tiny, nearly
 	// static, and used by every route to build delivery URLs. Shipping it
@@ -64,7 +68,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 									<h1 className="text-sm font-medium text-muted-foreground">
 										Cloudflare Images
 									</h1>
-									<div className="ml-auto">
+									<div className="ml-auto flex items-center gap-2">
+										<Badge variant="outline">v{__APP_VERSION__}</Badge>
+										<Badge variant="outline">{__APP_COMMIT__}</Badge>
 										<ModeToggle />
 									</div>
 								</header>

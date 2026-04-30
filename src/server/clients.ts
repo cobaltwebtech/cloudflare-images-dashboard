@@ -12,7 +12,7 @@ const HEX_COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 const ClientInputSchema = z.object({
 	name: z.string().min(1).max(200),
-	website: z.string().url().nullish(),
+	domain: z.string().nullish(),
 	description: z.string().max(2000).nullish(),
 	color: z.string().regex(HEX_COLOR).nullish(),
 	creator: z.string().min(1).max(500).nullish(),
@@ -26,7 +26,7 @@ const ClientInputSchema = z.object({
 function clientValues(data: z.infer<typeof ClientInputSchema>) {
 	return {
 		name: data.name,
-		website: data.website ?? null,
+		domain: data.domain ?? null,
 		description: data.description ?? null,
 		color: data.color ?? null,
 		creator: data.creator?.trim() || null,

@@ -1,6 +1,6 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, isNull, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { clients, imagesCache } from "@/db/db-schema";
 import { validateMeta } from "@/lib/format";
@@ -406,6 +406,62 @@ export const deleteImage = createServerFn({ method: "POST" })
 		await cf.images.v1.delete(data.id, { account_id: accountId });
 		await db.delete(imagesCache).where(eq(imagesCache.id, data.id));
 		return { success: true };
+	});
+
+// ---------------------------------------------------------------------------
+// BULK UPDATE
+// ---------------------------------------------------------------------------
+
+const BulkUpdateImagesSchema = z
+	.object({
+		ids: z.array(z.string().min(1)).min(1).max(500),
+		/**
+		 * Target folder id. `undefined` = leave folder unchanged, `null` = move
+		 * to root, otherwise set to the given folder id.
+		 */
+		folderId: z.string().nullish(),
+		/**
+		 * Target client id. `undefined` = leave client unchanged, `null` =
+		 * unassign, otherwise set to the given client id.
+		 */
+		clientId: z.string().nullish(),
+	})
+	.refine(
+		(d) => d.folderId !== undefined || d.clientId !== undefined,
+		"Provide at least one of `folderId` or `clientId` to update",
+	);
+
+/**
+ * Bulk-assign folder and/or client to many images at once. Both fields are
+ * local-only — no CF API calls are made. Pass `null` for either to clear it,
+ * or omit (leave `undefined`) to leave it unchanged.
+ *
+ * Returns the number of rows updated and which fields were touched.
+ */
+export const bulkUpdateImages = createServerFn({ method: "POST" })
+	.inputValidator(BulkUpdateImagesSchema)
+	.handler(async ({ data }) => {
+		const ctx = getServerCtx();
+
+		const patch: Partial<typeof imagesCache.$inferInsert> = {};
+		if (data.folderId !== undefined) {
+			patch.folderId = data.folderId;
+			patch.folderPath = await resolveFolderPath(ctx, data.folderId);
+		}
+		if (data.clientId !== undefined) {
+			patch.clientId = data.clientId;
+		}
+
+		await ctx.db
+			.update(imagesCache)
+			.set(patch)
+			.where(inArray(imagesCache.id, data.ids));
+
+		return {
+			updated: data.ids.length,
+			folderChanged: data.folderId !== undefined,
+			clientChanged: data.clientId !== undefined,
+		};
 	});
 
 // ---------------------------------------------------------------------------

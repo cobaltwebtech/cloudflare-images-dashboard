@@ -270,10 +270,13 @@ export const deleteFolder = createServerFn({ method: "POST" })
 		const subPattern = `${folder.path}/%`;
 
 		const stmts = [
-			// Clear folder_path on every image under this folder + descendants
-			// (folder_id will be nulled by FK ON DELETE SET NULL during cascade)
+			// Null out folder_id + folder_path together on every image under this
+			// folder or its descendants. Both columns must move in lockstep to
+			// satisfy the `images_cache_folder_consistency` CHECK constraint —
+			// the FK ON DELETE SET NULL alone would null folder_id later, but
+			// this UPDATE runs first and would otherwise violate the check.
 			env.DB.prepare(
-				"UPDATE images_cache SET folder_path = NULL WHERE folder_path = ? OR folder_path LIKE ?",
+				"UPDATE images_cache SET folder_id = NULL, folder_path = NULL WHERE folder_path = ? OR folder_path LIKE ?",
 			).bind(folder.path, subPattern),
 			// Delete this folder; descendants cascade via folders.parent_id FK
 			env.DB.prepare("DELETE FROM folders WHERE id = ?").bind(folder.id),

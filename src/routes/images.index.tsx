@@ -1,18 +1,16 @@
 import {
 	ArrowsClockwiseIcon,
+	FolderPlusIcon,
+	FolderSimpleIcon,
 	GridFourIcon,
 	ImageIcon,
 	ListIcon,
 	LockIcon,
 	MagnifyingGlassIcon,
 	UploadSimpleIcon,
+	XIcon,
 } from "@phosphor-icons/react";
-import {
-	keepPreviousData,
-	useMutation,
-	useQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
 	type ColumnDef,
@@ -23,13 +21,21 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { BulkEdit } from "@/components/bulk-edit";
 import { ClientPicker } from "@/components/client-picker";
 import { EmptyState } from "@/components/empty-state";
-import { FolderPicker } from "@/components/folder-picker";
+import { FolderTreeFilter } from "@/components/folder-tree-filter";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+	Card,
+	CardAction,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -71,6 +77,14 @@ const PAGE_SIZE = 50;
 /** Min interval between automatic background syncs (ms). */
 const AUTO_SYNC_INTERVAL_MS = 60_000;
 const AUTO_SYNC_STORAGE_KEY = "images:lastAutoSyncAt";
+const VIEW_STORAGE_KEY = "images:view";
+const DEFAULT_VIEW: "grid" | "table" = "table";
+
+function readStoredView(): "grid" | "table" {
+	if (typeof window === "undefined") return DEFAULT_VIEW;
+	const v = window.localStorage.getItem(VIEW_STORAGE_KEY);
+	return v === "grid" || v === "table" ? v : DEFAULT_VIEW;
+}
 
 export const Route = createFileRoute("/images/")({
 	component: ImagesIndex,
@@ -173,22 +187,32 @@ function ImagesFilters({
 	onSearchInputChange,
 	onSubmitSearch,
 	clientId,
-	folderId,
 	onClientChange,
-	onFolderChange,
+	hasActiveFilters,
+	onClearFilters,
 }: {
 	searchInput: string;
 	onSearchInputChange: (value: string) => void;
 	onSubmitSearch: (e: React.SubmitEvent) => void;
 	clientId: string | null | undefined;
-	folderId: string | null | undefined;
 	onClientChange: (id: string | null | undefined) => void;
-	onFolderChange: (id: string | null | undefined) => void;
+	hasActiveFilters: boolean;
+	onClearFilters: () => void;
 }) {
 	return (
 		<Card className="mb-4">
-			<CardContent className="grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-4">
-				<form onSubmit={onSubmitSearch} className="lg:col-span-2">
+			<CardHeader>
+				<CardTitle>Search & Filter</CardTitle>
+				{hasActiveFilters ? (
+					<CardAction>
+						<Button variant="ghost" size="sm" onClick={onClearFilters}>
+							<XIcon /> Clear filters
+						</Button>
+					</CardAction>
+				) : null}
+			</CardHeader>
+			<CardContent className="flex items-center gap-4 lg:gap-6">
+				<form onSubmit={onSubmitSearch} className="flex-1">
 					<Label htmlFor="search" className="mb-1 text-xs">
 						Search
 					</Label>
@@ -204,23 +228,14 @@ function ImagesFilters({
 					</div>
 				</form>
 
-				<div>
+				<div className="min-w-80">
 					<Label className="mb-1 text-xs">Client</Label>
 					<ClientPicker
 						value={clientId}
 						onChange={onClientChange}
 						includeAll
 						placeholder="All clients"
-					/>
-				</div>
-
-				<div>
-					<Label className="mb-1 text-xs">Folder</Label>
-					<FolderPicker
-						value={folderId}
-						onChange={onFolderChange}
-						includeAll
-						placeholder="All folders"
+						className="w-full"
 					/>
 				</div>
 			</CardContent>
@@ -236,7 +251,7 @@ function ViewToggle({
 	onChange: (view: "grid" | "table") => void;
 }) {
 	return (
-		<div className="mb-3 flex items-center justify-end gap-1">
+		<div className="mb-3 flex items-center justify-start gap-1">
 			<Button
 				size="sm"
 				variant={value === "grid" ? "default" : "outline"}
@@ -261,12 +276,18 @@ function ImagesResults({
 	items,
 	hash,
 	clientNames,
+	selected,
+	onToggleOne,
+	onToggleAll,
 }: {
 	isLoading: boolean;
 	view: "grid" | "table";
 	items: Array<ImageCacheRow>;
 	hash: string;
 	clientNames: Record<string, string>;
+	selected: Set<string>;
+	onToggleOne: (id: string, checked: boolean) => void;
+	onToggleAll: (checked: boolean) => void;
 }) {
 	if (isLoading) {
 		if (view === "grid") {
@@ -298,9 +319,24 @@ function ImagesResults({
 		);
 	}
 	if (view === "grid") {
-		return <ImageGrid items={items} hash={hash} />;
+		return (
+			<ImageGrid
+				items={items}
+				hash={hash}
+				selected={selected}
+				onToggleOne={onToggleOne}
+			/>
+		);
 	}
-	return <ImageTable items={items} clientNames={clientNames} />;
+	return (
+		<ImageTable
+			items={items}
+			clientNames={clientNames}
+			selected={selected}
+			onToggleOne={onToggleOne}
+			onToggleAll={onToggleAll}
+		/>
+	);
 }
 
 // Cyclomatic count is dominated by inline JSX callbacks; cognitive complexity is 9.
@@ -311,23 +347,24 @@ function ImagesIndex() {
 	const queryClient = useQueryClient();
 
 	const [searchInput, setSearchInput] = useState(search.q ?? "");
+	// Bulk-selected image IDs. Persists across pagination/filter changes so the
+	// user can build a multi-page selection before applying a bulk action.
+	const [selected, setSelected] = useState<Set<string>>(() => new Set());
+	const [bulkOpen, setBulkOpen] = useState(false);
 
-	const view = search.view ?? "grid";
+	const view = search.view ?? readStoredView();
 	const page = search.page ?? 1;
 	const offset = (page - 1) * PAGE_SIZE;
 
-	const images = useQuery({
-		...imagesListQueryOptions({
+	const images = useQuery(
+		imagesListQueryOptions({
 			search: search.q || undefined,
 			clientId: search.clientId,
 			folderId: search.folderId,
 			limit: PAGE_SIZE,
 			offset,
 		}),
-		// Avoid skeletons when paginating / changing filters — show the
-		// previous page's rows until the new data lands.
-		placeholderData: keepPreviousData,
-	});
+	);
 
 	const config = useQuery(configQueryOptions());
 	const clients = useQuery(clientsQueryOptions());
@@ -346,6 +383,31 @@ function ImagesIndex() {
 
 	const total = images.data?.total ?? 0;
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+	const pageItems = images.data?.items ?? [];
+
+	function toggleOne(id: string, checked: boolean) {
+		setSelected((prev) => {
+			const next = new Set(prev);
+			if (checked) next.add(id);
+			else next.delete(id);
+			return next;
+		});
+	}
+
+	function toggleAllOnPage(checked: boolean) {
+		setSelected((prev) => {
+			const next = new Set(prev);
+			for (const it of pageItems) {
+				if (checked) next.add(it.id);
+				else next.delete(it.id);
+			}
+			return next;
+		});
+	}
+
+	function clearSelection() {
+		setSelected(new Set());
+	}
 
 	function update(patch: Partial<z.infer<typeof SearchSchema>>) {
 		navigate({ search: (prev) => ({ ...prev, ...patch, page: 1 }) });
@@ -354,6 +416,23 @@ function ImagesIndex() {
 	function onSubmitSearch(e: React.FormEvent) {
 		e.preventDefault();
 		update({ q: searchInput || undefined });
+	}
+
+	const hasActiveFilters = Boolean(
+		search.q || search.clientId || search.folderId,
+	);
+
+	function clearFilters() {
+		setSearchInput("");
+		navigate({
+			search: (prev) => ({
+				...prev,
+				q: undefined,
+				clientId: undefined,
+				folderId: undefined,
+				page: 1,
+			}),
+		});
 	}
 
 	return (
@@ -377,37 +456,100 @@ function ImagesIndex() {
 				}
 			/>
 
-			<ImagesFilters
-				searchInput={searchInput}
-				onSearchInputChange={setSearchInput}
-				onSubmitSearch={onSubmitSearch}
-				clientId={search.clientId}
-				folderId={search.folderId}
-				onClientChange={(id) => update({ clientId: id })}
-				onFolderChange={(id) => update({ folderId: id })}
-			/>
+			{/* Two-column flex layout: main results on the left, folder
+			    sidebar on the right. Stacks on small screens; side-by-side at lg. */}
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+				<div className="flex min-w-0 flex-1 flex-col">
+					<ImagesFilters
+						searchInput={searchInput}
+						onSearchInputChange={setSearchInput}
+						onSubmitSearch={onSubmitSearch}
+						clientId={search.clientId}
+						onClientChange={(id) => update({ clientId: id })}
+						hasActiveFilters={hasActiveFilters}
+						onClearFilters={clearFilters}
+					/>
 
-			<ViewToggle
-				value={view}
-				onChange={(v) => navigate({ search: (p) => ({ ...p, view: v }) })}
-			/>
+					<ViewToggle
+						value={view}
+						onChange={(v) => {
+							if (typeof window !== "undefined") {
+								window.localStorage.setItem(VIEW_STORAGE_KEY, v);
+							}
+							navigate({ search: (p) => ({ ...p, view: v }) });
+						}}
+					/>
 
-			<ImagesResults
-				isLoading={images.isLoading}
-				view={view}
-				items={images.data?.items ?? []}
-				hash={config.data?.imagesHash ?? ""}
-				clientNames={Object.fromEntries(
-					(clients.data ?? []).map((c) => [c.id, c.name]),
-				)}
-			/>
+					{selected.size > 0 ? (
+						<div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+							<div className="font-medium">
+								{formatNumber(selected.size)} selected
+							</div>
+							<div className="flex items-center gap-2">
+								<Button size="sm" onClick={() => setBulkOpen(true)}>
+									<FolderSimpleIcon /> Bulk edit
+								</Button>
+								<Button size="sm" variant="ghost" onClick={clearSelection}>
+									<XIcon /> Clear
+								</Button>
+							</div>
+						</div>
+					) : null}
 
-			<PagerControls
-				page={page}
-				totalPages={totalPages}
-				onPageChange={(p) =>
-					navigate({ search: (prev) => ({ ...prev, page: p }) })
-				}
+					<ImagesResults
+						isLoading={images.isLoading}
+						view={view}
+						items={pageItems}
+						hash={config.data?.imagesHash ?? ""}
+						clientNames={Object.fromEntries(
+							(clients.data ?? []).map((c) => [c.id, c.name]),
+						)}
+						selected={selected}
+						onToggleOne={toggleOne}
+						onToggleAll={toggleAllOnPage}
+					/>
+
+					<PagerControls
+						page={page}
+						totalPages={totalPages}
+						onPageChange={(p) =>
+							navigate({ search: (prev) => ({ ...prev, page: p }) })
+						}
+					/>
+				</div>
+
+				<aside
+					aria-label="Folders"
+					className="w-full shrink-0 lg:sticky lg:top-4 lg:w-65"
+				>
+					<Card>
+						<CardHeader>
+							<CardTitle>Folders</CardTitle>
+							<CardAction>
+								<Button asChild>
+									<Link to="/folders">
+										<FolderPlusIcon />
+									</Link>
+								</Button>
+							</CardAction>
+						</CardHeader>
+						<CardContent>
+							<div className="max-h-[60vh] overflow-y-auto">
+								<FolderTreeFilter
+									value={search.folderId}
+									onChange={(id) => update({ folderId: id })}
+								/>
+							</div>
+						</CardContent>
+					</Card>
+				</aside>
+			</div>
+
+			<BulkEdit
+				open={bulkOpen}
+				onOpenChange={setBulkOpen}
+				selectedIds={Array.from(selected)}
+				onCompleted={clearSelection}
 			/>
 		</>
 	);
@@ -416,51 +558,85 @@ function ImagesIndex() {
 function ImageGrid({
 	items,
 	hash,
+	selected,
+	onToggleOne,
 }: {
 	items: Array<ImageCacheRow>;
 	hash: string;
+	selected: Set<string>;
+	onToggleOne: (id: string, checked: boolean) => void;
 }) {
 	return (
 		<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
 			{items.map((img) => {
 				const variants = parseVariants(img.variants);
 				const thumb = hash ? pickThumbnailUrl(hash, img.id, variants) : "";
+				const isSelected = selected.has(img.id);
 				return (
-					<Link
+					<div
 						key={img.id}
-						to="/images/$imageId"
-						params={{ imageId: img.id }}
-						className="group relative block overflow-hidden rounded-md border bg-muted"
+						className={`group relative overflow-hidden rounded-md border bg-muted ${
+							isSelected ? "ring-2 ring-primary" : ""
+						}`}
 					>
-						<div className="aspect-square">
-							{thumb ? (
-								<img
-									src={thumb}
-									alt={img.filename ?? img.id}
-									className="h-full w-full object-cover transition group-hover:scale-105"
-									loading="lazy"
-								/>
-							) : (
-								<div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-									No preview
+						{/* Selection checkbox — overlay, separate from the link so it
+						    doesn't navigate when toggled. */}
+						<button
+							type="button"
+							aria-label={isSelected ? "Deselect image" : "Select image"}
+							onClick={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								onToggleOne(img.id, !isSelected);
+							}}
+							className={`absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-sm bg-black/60 text-white transition ${
+								isSelected
+									? "opacity-100"
+									: "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+							}`}
+						>
+							<Checkbox
+								checked={isSelected}
+								// Toggle is handled by the wrapper button.
+								onCheckedChange={() => onToggleOne(img.id, !isSelected)}
+								className="bg-white"
+							/>
+						</button>
+						<Link
+							to="/images/$imageId"
+							params={{ imageId: img.id }}
+							className="block"
+						>
+							<div className="aspect-square">
+								{thumb ? (
+									<img
+										src={thumb}
+										alt={img.filename ?? img.id}
+										className="h-full w-full object-cover transition group-hover:scale-105"
+										loading="lazy"
+									/>
+								) : (
+									<div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+										No preview
+									</div>
+								)}
+							</div>
+							{img.requireSignedUrls ? (
+								<div
+									className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+									title="Requires signed URL"
+								>
+									<LockIcon className="size-3.5" weight="fill" />
 								</div>
-							)}
-						</div>
-						{img.requireSignedUrls ? (
-							<div
-								className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
-								title="Requires signed URL"
-							>
-								<LockIcon className="size-3.5" weight="fill" />
+							) : null}
+							<div className="absolute inset-x-0 bottom-0 bg-neutral-700 p-2 text-xs text-white">
+								<div className="truncate">{img.filename ?? img.id}</div>
+								<div className="truncate text-white/70">
+									{formatDateShort(img.uploadedAt)}
+								</div>
 							</div>
-						) : null}
-						<div className="absolute inset-x-0 bottom-0 bg-neutral-700 p-2 text-xs text-white">
-							<div className="truncate">{img.filename ?? img.id}</div>
-							<div className="truncate text-white/70">
-								{formatDateShort(img.uploadedAt)}
-							</div>
-						</div>
-					</Link>
+						</Link>
+					</div>
 				);
 			})}
 		</div>
@@ -470,11 +646,39 @@ function ImageGrid({
 function ImageTable({
 	items,
 	clientNames,
+	selected,
+	onToggleOne,
+	onToggleAll,
 }: {
 	items: Array<ImageCacheRow>;
 	clientNames: Record<string, string>;
+	selected: Set<string>;
+	onToggleOne: (id: string, checked: boolean) => void;
+	onToggleAll: (checked: boolean) => void;
 }) {
+	const allOnPageSelected =
+		items.length > 0 && items.every((it) => selected.has(it.id));
 	const columns: Array<ColumnDef<ImageCacheRow>> = [
+		{
+			id: "select",
+			header: () => (
+				<Checkbox
+					checked={allOnPageSelected}
+					onCheckedChange={(v) => onToggleAll(v === true)}
+					aria-label="Select all on page"
+				/>
+			),
+			cell: ({ row }) => {
+				const isSelected = selected.has(row.original.id);
+				return (
+					<Checkbox
+						checked={isSelected}
+						onCheckedChange={(v) => onToggleOne(row.original.id, v === true)}
+						aria-label="Select image"
+					/>
+				);
+			},
+		},
 		{
 			accessorKey: "filename",
 			header: "Filename",
@@ -494,14 +698,6 @@ function ImageTable({
 			cell: ({ row }) => (
 				<code className="text-xs text-muted-foreground">{row.original.id}</code>
 			),
-		},
-		{
-			accessorKey: "folderPath",
-			header: "Folder",
-			cell: ({ row }) =>
-				row.original.folderPath ?? (
-					<span className="text-muted-foreground">/</span>
-				),
 		},
 		{
 			accessorKey: "clientId",

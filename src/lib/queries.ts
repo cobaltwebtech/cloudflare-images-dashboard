@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { getClient, listClients } from "@/server/clients";
 import { getPublicConfig } from "@/server/config";
 import { getFolderCounts, listFolders } from "@/server/folders";
@@ -82,6 +82,9 @@ export const imagesListQueryOptions = (args: ImagesListArgs) =>
 	queryOptions({
 		queryKey: queryKeys.images.list(args),
 		queryFn: () => listImages({ data: args }),
+		// Keep the previous page visible while the next page loads so
+		// pagination/filter changes don't flash an empty state.
+		placeholderData: keepPreviousData,
 	});
 
 export const imageDetailQueryOptions = (id: string) =>

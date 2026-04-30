@@ -1,5 +1,5 @@
 import {
-	ArrowsOutCardinalIcon,
+	ArrowsOutLineVerticalIcon,
 	CaretDownIcon,
 	CaretRightIcon,
 	FolderIcon,
@@ -91,7 +91,7 @@ function FoldersPage() {
 					<NewFolderButton
 						parentId={null}
 						onSuccess={refresh}
-						label="New root folder"
+						label="Add Folder"
 					/>
 				}
 			/>
@@ -163,10 +163,10 @@ function FolderRowActions({
 	onChange: () => void;
 }) {
 	return (
-		<div className="ml-auto flex gap-1 opacity-0 transition group-hover:opacity-100">
+		<div className="ml-auto flex gap-4 opacity-0 transition group-hover:opacity-100">
+			<MoveFolderButton folder={folder} onSuccess={onChange} />
 			<NewFolderButton parentId={folder.id} onSuccess={onChange} compact />
 			<RenameFolderButton folder={folder} onSuccess={onChange} />
-			<MoveFolderButton folder={folder} onSuccess={onChange} />
 			<DeleteFolderButton folder={folder} onSuccess={onChange} />
 		</div>
 	);
@@ -191,7 +191,7 @@ function FolderNode({
 	return (
 		<li>
 			<div
-				className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
+				className="group flex items-center gap-2 px-2 py-1.5 hover:bg-accent"
 				style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
 			>
 				<FolderRowChevron
@@ -201,7 +201,6 @@ function FolderNode({
 				/>
 				<FolderIcon className="size-4 text-muted-foreground" />
 				<span className="font-medium">{node.name}</span>
-				<code className="text-xs text-muted-foreground">{node.path}</code>
 				{imageCount > 0 ? (
 					<Badge variant="secondary" className="ml-2">
 						{imageCount}
@@ -255,7 +254,7 @@ function NewFolderButton({
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				{compact ? (
-					<Button variant="ghost" size="icon" title="New subfolder">
+					<Button variant="outline" size="icon" title="New subfolder">
 						<FolderPlusIcon />
 					</Button>
 				) : (
@@ -322,7 +321,7 @@ function RenameFolderButton({
 			}}
 		>
 			<DialogTrigger asChild>
-				<Button variant="ghost" size="icon" title="Rename">
+				<Button variant="outline" size="icon" title="Rename">
 					<PencilSimpleIcon />
 				</Button>
 			</DialogTrigger>
@@ -375,8 +374,8 @@ function MoveFolderButton({
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button variant="ghost" size="icon" title="Move">
-					<ArrowsOutCardinalIcon />
+				<Button variant="outline" size="icon" title="Move">
+					<ArrowsOutLineVerticalIcon />
 				</Button>
 			</DialogTrigger>
 			<DialogContent>

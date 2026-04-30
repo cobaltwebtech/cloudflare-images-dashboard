@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
 	type AnySQLiteColumn,
+	check,
 	index,
 	integer,
 	sqliteTable,
@@ -21,7 +22,7 @@ export const clients = sqliteTable(
 	{
 		id: text("id").primaryKey(), // nanoid
 		name: text("name").notNull(),
-		website: text("website"),
+		domain: text("domain"),
 		description: text("description"),
 		color: text("color"), // hex swatch for UI
 		creator: text("creator"), // CF Images `creator` value to auto-link images by
@@ -98,11 +99,25 @@ export const imagesCache = sqliteTable(
 			.default(sql`(unixepoch())`),
 	},
 	(t) => [
-		index("images_cache_client_id_idx").on(t.clientId),
-		index("images_cache_folder_id_idx").on(t.folderId),
+		// Composite (folder_id, uploaded_at) lets the common
+		// `WHERE folder_id = ? ORDER BY uploaded_at DESC LIMIT … OFFSET …`
+		// query be served entirely from the index (no separate sort).
+		// It also covers plain `WHERE folder_id = ?` and `IS NULL`,
+		// so the single-column folder_id index is no longer needed.
+		index("images_cache_folder_uploaded_idx").on(t.folderId, t.uploadedAt),
+		// Same idea for client-filtered lists.
+		index("images_cache_client_uploaded_idx").on(t.clientId, t.uploadedAt),
 		index("images_cache_folder_path_idx").on(t.folderPath),
 		index("images_cache_uploaded_at_idx").on(t.uploadedAt),
 		index("images_cache_filename_idx").on(t.filename),
+		// Keep folder_id and folder_path consistent: either both NULL (root)
+		// or both non-NULL. Enforced at the DB level so a future code path
+		// can't silently desync the denormalized path.
+		check(
+			"images_cache_folder_consistency",
+			sql`(${t.folderId} IS NULL AND ${t.folderPath} IS NULL)
+				OR (${t.folderId} IS NOT NULL AND ${t.folderPath} IS NOT NULL)`,
+		),
 	],
 );
 
@@ -119,7 +134,9 @@ export const customTags = sqliteTable(
 		tag: text("tag").notNull(),
 	},
 	(t) => [
-		index("custom_tags_image_id_idx").on(t.imageId),
+		// One row per (image, tag); covers both per-image lookups and
+		// per-tag filtering thanks to the leading column.
+		uniqueIndex("custom_tags_image_tag_unq").on(t.imageId, t.tag),
 		index("custom_tags_tag_idx").on(t.tag),
 	],
 );

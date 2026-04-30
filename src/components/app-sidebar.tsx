@@ -1,10 +1,10 @@
 import {
 	ArrowSquareOutIcon,
+	FoldersIcon,
 	ImageIcon,
 	KeyIcon,
 	ResizeIcon,
 	SquaresFourIcon,
-	StackIcon,
 	UploadSimpleIcon,
 	UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -33,7 +33,7 @@ const NAV_PRIMARY: Array<NavItem> = [
 	{ title: "Dashboard", to: "/", icon: <SquaresFourIcon />, exact: true },
 	{ title: "Upload", to: "/upload", icon: <UploadSimpleIcon /> },
 	{ title: "Images", to: "/images", icon: <ImageIcon /> },
-	{ title: "Folders", to: "/folders", icon: <StackIcon /> },
+	{ title: "Folders", to: "/folders", icon: <FoldersIcon /> },
 	{ title: "Clients", to: "/clients", icon: <UsersThreeIcon /> },
 ];
 

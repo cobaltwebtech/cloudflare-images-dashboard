@@ -34,13 +34,13 @@ const TILES: Array<NavTile> = [
 	{
 		title: "Images",
 		to: "/images",
-		description: "Browse, filter, and manage your library.",
+		description: "Browse, filter, and manage images in Cloudflare Images.",
 		icon: <ImageIcon className="size-6" />,
 	},
 	{
 		title: "Folders",
 		to: "/folders",
-		description: "Organize images into nested folders.",
+		description: "Organize images into folders.",
 		icon: <StackIcon className="size-6" />,
 	},
 	{
@@ -52,13 +52,13 @@ const TILES: Array<NavTile> = [
 	{
 		title: "Variants",
 		to: "/variants",
-		description: "Resize and crop presets for delivery URLs.",
+		description: "Image variants used for transforming images on delivery.",
 		icon: <ResizeIcon className="size-6" />,
 	},
 	{
 		title: "Signing Keys",
 		to: "/signing-keys",
-		description: "Mint signed URLs for private images.",
+		description: "Manage keys for signing URLs of private images.",
 		icon: <KeyIcon className="size-6" />,
 	},
 ];
