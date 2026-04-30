@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cloudflare-images-dashboard",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "@tanstack/react-start/server-entry",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "cf-images-dashboard",
+			"database_id": "c7db4fbc-606d-4aa5-97ce-e337fd8d1963",
+			"migrations_dir": "drizzle"
+		}
+	]
+}

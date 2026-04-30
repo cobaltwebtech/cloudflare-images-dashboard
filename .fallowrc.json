@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/index.{ts,tsx,js,jsx}",
+    "src/main.{ts,tsx,js,jsx}"
+  ],
+  "ignorePatterns": ["**/*.gen.ts", "**/*.d.ts"],
+  "rules": {
+    "unused-dependencies": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["src/components/ui/**"],
+      "rules": {
+        "unused-exports": "off",
+        "unused-types": "off"
+      }
+    }
+  ],
+  "duplicates": {
+    "minLines": 12,
+    "ignoreImports": true,
+    "ignore": [
+      "src/routeTree.gen.ts",
+      "src/components/ui/**",
+      "drizzle/**"
+    ]
+  },
+  "health": {
+    "maxCrap": 200,
+    "ignore": [
+      "src/components/ui/**",
+      "src/components/**"
+    ]
+  }
+}
