@@ -22,6 +22,25 @@ type CFImage = {
 };
 
 /**
+ * Stable JSON stringify: sorts object keys recursively so the output is
+ * byte-identical regardless of the input key order. Used for `meta` and
+ * `variants` so the sync skip-if-unchanged check isn't fooled by CF returning
+ * the same data in a different order.
+ */
+function stableStringify(value: unknown): string {
+	return JSON.stringify(value, (_key, v) => {
+		if (v && typeof v === "object" && !Array.isArray(v)) {
+			const sorted: Record<string, unknown> = {};
+			for (const k of Object.keys(v as Record<string, unknown>).sort()) {
+				sorted[k] = (v as Record<string, unknown>)[k];
+			}
+			return sorted;
+		}
+		return v;
+	});
+}
+
+/**
  * Convert a CF API image into an `images_cache` row insert payload.
  * Folder fields are NOT touched here — those are managed locally only.
  */
@@ -31,11 +50,12 @@ function cfImageToRow(img: CFImage & { id: string }) {
 	return {
 		id: img.id,
 		filename: img.filename ?? null,
-		meta: img.meta == null ? null : JSON.stringify(img.meta),
+		meta: img.meta == null ? null : stableStringify(img.meta),
 		requireSignedUrls: img.requireSignedURLs ?? false,
 		uploadedAt: img.uploaded ? new Date(img.uploaded) : null,
 		creator: img.creator ?? null,
-		variants: img.variants ? JSON.stringify(img.variants) : null,
+		// Sort variants so URL ordering changes from CF don't trigger writes.
+		variants: img.variants ? stableStringify([...img.variants].sort()) : null,
 		lastSyncedAt: new Date(),
 	};
 }
