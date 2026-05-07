@@ -25,6 +25,7 @@ import { BulkEdit } from "@/components/bulk-edit";
 import { ClientPicker } from "@/components/client-picker";
 import { EmptyState } from "@/components/empty-state";
 import { FolderTreeFilter } from "@/components/folder-tree-filter";
+import { ImageStats } from "@/components/image-stats";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ import {
 	configQueryOptions,
 	imagesListQueryOptions,
 	queryKeys,
+	statsQueryOptions,
 } from "@/lib/queries";
 import { syncImages } from "@/server/images";
 
@@ -87,6 +89,8 @@ function readStoredView(): "grid" | "table" {
 }
 
 export const Route = createFileRoute("/images/")({
+	loader: ({ context: { queryClient } }) =>
+		queryClient.ensureQueryData(statsQueryOptions()),
 	component: ImagesIndex,
 	validateSearch: SearchSchema,
 });
@@ -426,7 +430,7 @@ function ImagesIndex() {
 		navigate({ search: (prev) => ({ ...prev, ...patch, page: 1 }) });
 	}
 
-	function onSubmitSearch(e: React.FormEvent) {
+	function onSubmitSearch(e: React.SubmitEvent) {
 		e.preventDefault();
 		update({ q: searchInput || undefined });
 	}
@@ -452,7 +456,7 @@ function ImagesIndex() {
 		<>
 			<PageHeader
 				title="Images"
-				description={`${formatNumber(total)} ${total === 1 ? "image" : "images"}`}
+				description="All images stored at Cloudflare Images"
 				actions={
 					<>
 						<SyncButton
@@ -468,6 +472,8 @@ function ImagesIndex() {
 					</>
 				}
 			/>
+
+			<ImageStats />
 
 			{/* Two-column flex layout: main results on the left, folder
 			    sidebar on the right. Stacks on small screens; side-by-side at lg. */}

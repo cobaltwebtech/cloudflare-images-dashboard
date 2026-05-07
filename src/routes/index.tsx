@@ -7,6 +7,7 @@ import {
 	UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ImageStats } from "@/components/image-stats";
 import { PageHeader } from "@/components/page-header";
 import {
 	Card,
@@ -14,8 +15,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { statsQueryOptions } from "@/lib/queries";
 
-export const Route = createFileRoute("/")({ component: Dashboard });
+export const Route = createFileRoute("/")({
+	loader: ({ context: { queryClient } }) =>
+		queryClient.ensureQueryData(statsQueryOptions()),
+	component: Dashboard,
+});
 
 type NavTile = {
 	title: string;
@@ -70,6 +76,8 @@ function Dashboard() {
 				title="Dashboard"
 				description="Jump to a section of the Cloudflare Images dashboard."
 			/>
+
+			<ImageStats />
 
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{TILES.map((tile) => (

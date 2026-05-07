@@ -2,10 +2,9 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { getClient, listClients } from "@/server/clients";
 import { getPublicConfig } from "@/server/config";
 import { getFolderCounts, listFolders } from "@/server/folders";
-import { getImage, listImages } from "@/server/images";
+import { getImage, getImageStats, listImages } from "@/server/images";
 import { listSigningKeys } from "@/server/keys";
 import { listVariants } from "@/server/variants";
-
 /**
  * Centralized TanStack Query keys.
  *
@@ -104,5 +103,12 @@ export const signingKeysQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.signingKeys,
 		queryFn: () => listSigningKeys(),
+		staleTime: LONG_STALE,
+	});
+
+export const statsQueryOptions = () =>
+	queryOptions({
+		queryKey: queryKeys.stats,
+		queryFn: () => getImageStats(),
 		staleTime: LONG_STALE,
 	});

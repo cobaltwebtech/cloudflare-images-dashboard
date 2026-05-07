@@ -592,3 +592,14 @@ export const syncImages = createServerFn({ method: "POST" }).handler(
 		return { synced: scanned, written };
 	},
 );
+
+/**
+ * Fetch Cloudflare Images usage stats for the account.
+ * Returns `count.allowed` (plan limit) and `count.current` (images stored).
+ */
+export const getImageStats = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const { cf, accountId } = getServerCtx();
+		return cf.images.v1.stats.get({ account_id: accountId });
+	},
+);
