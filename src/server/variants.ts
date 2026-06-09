@@ -63,7 +63,7 @@ const VariantInputSchema = z.object({
  * (`imagedelivery.net/{hash}/{imageId}/{variantId}`).
  */
 export const createVariant = createServerFn({ method: "POST" })
-	.inputValidator(VariantInputSchema)
+	.validator(VariantInputSchema)
 	.handler(async ({ data }) => {
 		const { cf, accountId } = getServerCtx();
 		const res = await cf.images.v1.variants.create({
@@ -85,7 +85,7 @@ const VariantUpdateSchema = z.object({
  * Update a variant. Purges cache for all images using this variant.
  */
 export const updateVariant = createServerFn({ method: "POST" })
-	.inputValidator(VariantUpdateSchema)
+	.validator(VariantUpdateSchema)
 	.handler(async ({ data }) => {
 		const { cf, accountId } = getServerCtx();
 		const res = await cf.images.v1.variants.edit(data.id, {
@@ -100,7 +100,7 @@ export const updateVariant = createServerFn({ method: "POST" })
  * Delete a variant. Purges cache for all images using this variant.
  */
 export const deleteVariant = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ id: z.string().min(1) }))
+	.validator(z.object({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const { cf, accountId } = getServerCtx();
 		await cf.images.v1.variants.delete(data.id, { account_id: accountId });

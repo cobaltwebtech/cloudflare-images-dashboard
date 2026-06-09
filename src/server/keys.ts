@@ -34,7 +34,7 @@ const KeyNameSchema = z.object({
  * `applyHeadersMut` deletes any header whose value is `null`.
  */
 export const createSigningKey = createServerFn({ method: "POST" })
-	.inputValidator(KeyNameSchema)
+	.validator(KeyNameSchema)
 	.handler(async ({ data }) => {
 		const { cf, accountId } = getServerCtx();
 		const res = await cf.images.v1.keys.update(data.name, {
@@ -48,7 +48,7 @@ export const createSigningKey = createServerFn({ method: "POST" })
  * default. Returns the remaining keys.
  */
 export const deleteSigningKey = createServerFn({ method: "POST" })
-	.inputValidator(KeyNameSchema)
+	.validator(KeyNameSchema)
 	.handler(async ({ data }) => {
 		const { cf, accountId } = getServerCtx();
 		const res = await cf.images.v1.keys.delete(data.name, {

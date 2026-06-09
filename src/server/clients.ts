@@ -93,7 +93,7 @@ export const listClients = createServerFn({ method: "GET" }).handler(
  * Get a single client by id, or `null` if missing.
  */
 export const getClient = createServerFn({ method: "GET" })
-	.inputValidator(z.object({ id: z.string().min(1) }))
+	.validator(z.object({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const { db } = getServerCtx();
 		return fetchClientById(db, data.id);
@@ -104,7 +104,7 @@ export const getClient = createServerFn({ method: "GET" })
  * any existing cached images with that CF `creator` value to this client.
  */
 export const createClient = createServerFn({ method: "POST" })
-	.inputValidator(ClientInputSchema)
+	.validator(ClientInputSchema)
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 		const { db } = ctx;
@@ -124,7 +124,7 @@ export const createClient = createServerFn({ method: "POST" })
  * are cleared and images matching the new creator are linked.
  */
 export const updateClient = createServerFn({ method: "POST" })
-	.inputValidator(ClientInputSchema.extend({ id: z.string().min(1) }))
+	.validator(ClientInputSchema.extend({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 		const { db } = ctx;
@@ -145,7 +145,7 @@ export const updateClient = createServerFn({ method: "POST" })
  * schema's ON DELETE SET NULL constraint.
  */
 export const deleteClient = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ id: z.string().min(1) }))
+	.validator(z.object({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const { db } = getServerCtx();
 		await db.delete(clients).where(eq(clients.id, data.id));

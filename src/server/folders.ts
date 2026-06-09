@@ -140,7 +140,7 @@ const CreateFolderSchema = z.object({
  * Fails if a sibling with the same name already exists (unique path index).
  */
 export const createFolder = createServerFn({ method: "POST" })
-	.inputValidator(CreateFolderSchema)
+	.validator(CreateFolderSchema)
 	.handler(async ({ data }) => {
 		const { db } = getServerCtx();
 
@@ -185,7 +185,7 @@ const RenameFolderSchema = z.object({
  * affected folder. Executed in a single D1 batch for atomicity.
  */
 export const renameFolder = createServerFn({ method: "POST" })
-	.inputValidator(RenameFolderSchema)
+	.validator(RenameFolderSchema)
 	.handler(async ({ data }) => {
 		const { env, db } = getServerCtx();
 
@@ -223,7 +223,7 @@ const MoveFolderSchema = z.object({
  * moving a folder into itself or one of its descendants.
  */
 export const moveFolder = createServerFn({ method: "POST" })
-	.inputValidator(MoveFolderSchema)
+	.validator(MoveFolderSchema)
 	.handler(async ({ data }) => {
 		const { env, db } = getServerCtx();
 
@@ -261,7 +261,7 @@ export const moveFolder = createServerFn({ method: "POST" })
  * Note: images do NOT cascade-delete with folders — only the folder rows do.
  */
 export const deleteFolder = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ id: z.string().min(1) }))
+	.validator(z.object({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const { env, db } = getServerCtx();
 

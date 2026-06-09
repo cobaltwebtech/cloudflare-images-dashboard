@@ -600,14 +600,7 @@ function ImageGrid({
 					>
 						{/* Selection checkbox — overlay, separate from the link so it
 						    doesn't navigate when toggled. */}
-						<button
-							type="button"
-							aria-label={isSelected ? "Deselect image" : "Select image"}
-							onClick={(e) => {
-								e.preventDefault();
-								e.stopPropagation();
-								onToggleOne(img.id, !isSelected);
-							}}
+						<div
 							className={`absolute top-2 left-2 z-10 flex size-6 items-center justify-center rounded-sm bg-black/60 text-white transition ${
 								isSelected
 									? "opacity-100"
@@ -616,11 +609,13 @@ function ImageGrid({
 						>
 							<Checkbox
 								checked={isSelected}
-								// Toggle is handled by the wrapper button.
-								onCheckedChange={() => onToggleOne(img.id, !isSelected)}
+								onCheckedChange={(checked) =>
+									onToggleOne(img.id, checked === true)
+								}
+								aria-label={isSelected ? "Deselect image" : "Select image"}
 								className="bg-white"
 							/>
-						</button>
+						</div>
 						<Link
 							to="/images/$imageId"
 							params={{ imageId: img.id }}

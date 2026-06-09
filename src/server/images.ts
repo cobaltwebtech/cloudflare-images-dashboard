@@ -197,7 +197,7 @@ async function buildFolderConditions(
  * Use `syncImages` first if the cache might be stale.
  */
 export const listImages = createServerFn({ method: "GET" })
-	.inputValidator(ListImagesSchema)
+	.validator(ListImagesSchema)
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 		const { db } = ctx;
@@ -237,7 +237,7 @@ export const listImages = createServerFn({ method: "GET" })
  * preserved).
  */
 export const getImage = createServerFn({ method: "GET" })
-	.inputValidator(z.object({ id: z.string().min(1) }))
+	.validator(z.object({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 		const { cf, accountId, db } = ctx;
@@ -294,7 +294,7 @@ function parseUploadFormData(data: FormData) {
 }
 
 export const uploadImage = createServerFn({ method: "POST" })
-	.inputValidator((data) => {
+	.validator((data) => {
 		if (!(data instanceof FormData)) throw new Error("Expected FormData");
 		return parseUploadFormData(data);
 	})
@@ -395,7 +395,7 @@ async function applyLocalUpdate(
  * locally-managed fields (clientId/folderId). Either or both may be omitted.
  */
 export const updateImage = createServerFn({ method: "POST" })
-	.inputValidator(UpdateImageSchema)
+	.validator(UpdateImageSchema)
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 
@@ -418,7 +418,7 @@ export const updateImage = createServerFn({ method: "POST" })
  * Delete an image from CF and remove it from the local cache.
  */
 export const deleteImage = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ id: z.string().min(1) }))
+	.validator(z.object({ id: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 		const { cf, accountId, db } = ctx;
@@ -459,7 +459,7 @@ const BulkUpdateImagesSchema = z
  * Returns the number of rows updated and which fields were touched.
  */
 export const bulkUpdateImages = createServerFn({ method: "POST" })
-	.inputValidator(BulkUpdateImagesSchema)
+	.validator(BulkUpdateImagesSchema)
 	.handler(async ({ data }) => {
 		const ctx = getServerCtx();
 

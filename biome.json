@@ -1,9 +1,10 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
 	"vcs": {
-		"enabled": false,
+		"enabled": true,
 		"clientKind": "git",
-		"useIgnoreFile": false
+		"useIgnoreFile": true,
+		"defaultBranch": "main"
 	},
 	"files": {
 		"ignoreUnknown": false,
@@ -14,23 +15,36 @@
 			"**/vite.config.ts",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/styles.css",
-			"!worker-configuration.d.ts"
+			"!worker-configuration.d.ts",
+			"!!**/dist"
 		]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
 	},
-	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": true
 		}
 	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"quoteStyle": "double",
+			"jsxQuoteStyle": "double"
 		}
 	}
 }
